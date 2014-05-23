@@ -189,7 +189,7 @@ The base class for Link, taking input in three formats namely Briadword, gauss_c
 							if(A[i,0] == A[k,0]):
 								value = 1
 								A1 = A.delete_rows([k])
-					return A1 if value == 1 else A				
+			return A1 if value == 1 else A				
 			
 	def braidwordcomponentsvector(self):
 		r"""
