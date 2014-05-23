@@ -2,20 +2,23 @@ r"""
 Link class
 """
 #*****************************************************************************
-#  Copyright (C) 2014    
+#  Copyright (C) 2014
 #
 #  Distributed under the terms of the GNU General Public License (GPL)
 #                  http://www.gnu.org/licenses/
-#******************************************************************************
+#*****************************************************************************
+
 from sage.groups.free_group import FreeGroupElement
 from sage.groups.braid import Braid
+from sage.matrix.constructor import matrix
+from sage.rings.integer_ring import ZZ
 
 class Link:
-	"""
-	The base class for Link, taking input in three formats namely Briadword, gauss_code, dt_code
-	"""
+"""
+The base class for Link, taking input in three formats namely Briadword, gauss_code, dt_code
+"""
 	def __init__(self, input = None, gauss_code = None, dt_code = None):
-		if type(input) == sage.groups.braid.Braid:
+		if type(input) == Braid:
 			self._braid = input
 			self._gauss_code = None
 			self._dt_code = None
@@ -33,7 +36,7 @@ class Link:
 		else:
 			raise Exception("Invalid input")
 
-	def braid(self):
+	def braidword(self):
 		r"""
 		Returns the braidword
 
@@ -47,15 +50,48 @@ class Link:
 		"""
 
 		if self._braid != None:
+			return list(self._braid.Tietze())
+
+		elif self._gauss_code != None:
+			return "Not implemented Error"
+
+		elif self._dt_code != None:
+			return "Not Implemented Error"
+
+	def braid(self):
+		r"""
+		Returns the braid
+
+		INPUT:
+			- Either a briadword, gauss_code, dt_code
+
+		OUTPUT:
+			- Braid representation of the INPUT
+
+		EXAMPLES::
+		"""
+
+		if self._braid != None:
 			return self._braid
 
-		elif self._gauss_code != None: 
+		elif self._gauss_code != None:
 			return "Not implemented Error"
 
 		elif self._dt_code != None:
 			return "Not Implemented Error"
 
 	def gauss_code(self):
+		r"""
+		Returns the gauss_code
+
+		INPUT:
+			- Either a briadword, gauss_code, dt_code
+
+		OUTPUT:
+			- Gauss code representation of the INPUT
+
+		EXAMPLES::
+		"""
 		if self._gauss_code != None:
 			return self._gauss_code
 
@@ -66,6 +102,17 @@ class Link:
 			return "Not Implemented Error"
 
 	def dt_code(self):
+		r"""
+		Returns the dt_code
+
+		INPUT:
+			- Either a briadword, gauss_code, dt_code
+
+		OUTPUT:
+			- DT Code representation of the INPUT
+
+		EXAMPLES::
+		"""
 		if self._dt_code != None:
 			return self._dt_code
 
@@ -76,6 +123,25 @@ class Link:
 			return "Not Implemented Error"
 
 	def braidcomponentsmatrix(self):
+		r"""
+		Returns the braid components matrix # fails for input like 1 4 1 4 1 5 1 6
+
+		INPUT:
+			- Either a briadword, gauss_code, dt_code
+
+		OUTPUT:
+			- Matrix containing the components is returned
+
+		EXAMPLES::
+
+			sage: from sage.knots import link
+			sage: B = BraidGroup(4)
+			sage: L = link.Link(B([-1, 3, 1, 3]))
+			sage: L.braidcomponentsmatrix()
+			[-1  1  0  0]
+			[ 3  3  0  0]
+
+		"""
 		b = self.braid()
 		ml = list(b.Tietze())
 		l = [abs(k) for k in ml]
@@ -88,10 +154,10 @@ class Link:
 			difference.append(sorting[i] - sorting[i-1])
 		missing = list(set(range(sorting[0],sorting[-1]+1)) - set(sorting))
 		if len(missing) == 0:
-			A = matrix(QQ,1,len(ml),ml)
+			A = matrix(ZZ,1,len(ml),ml)
 			return A
 		else:
-			A = matrix(QQ, len(missing) + 1, len(l))
+			A = matrix(ZZ, len(missing) + 1, len(l))
 			for i in range(len(missing) + 1):
 	        		k = 0
 	        		for j in range(len(l)):
@@ -114,7 +180,7 @@ class Link:
 	 				if M == 0:
 	 					a = min(n for n in l1 if n!=M)
 	 					for j in range(len(l)):
-	 						if(A[i,j] != a):
+	 						if(A[i,j] != a and A[i,j] != a+1):
 								A[i,j] = 0
 
 			value = None
@@ -123,9 +189,26 @@ class Link:
 							if(A[i,0] == A[k,0]):
 								value = 1
 								A1 = A.delete_rows([k])
-			return A1 if value == 1 else A				
+					return A1 if value == 1 else A				
 			
-	def braidwordcompenetsvector(self):
+	def braidwordcomponentsvector(self):
+		r"""
+		From braidcomponentsmatrix it is converted to a vector
+
+		INPUT:
+			- Either a briadword, gauss_code, dt_code
+
+		OUTPUT:
+			- Vector containing non-zero values
+
+		EXAMPLES::
+
+			sage: from sage.knots import link
+			sage: B = BraidGroup(4)
+			sage: L = link.Link(B([-1, 3, 1, 3]))
+			sage: L.braidwordcomponentsvector()
+			[-1, 1, 3, 3]
+		"""
 		A = self.braidcomponentsmatrix()
 		if(A.nrows()>0):
 			x2 = []
@@ -139,7 +222,24 @@ class Link:
 			return list(x3)
 	
 	def homology_generators(self):
-		x4 = list(self.braid().Tietze())
+		r"""
+		Returns the homology generators
+
+		INPUT:
+			- Either a briadword, gauss_code, dt_code
+
+		OUTPUT:
+			- The homology generators relating to the braid word representation
+
+		EXAMPLES::
+
+			sage: from sage.knots import link
+			sage: B = BraidGroup(4)
+			sage: L = link.Link(B([-1, 3, 1, 3]))
+			sage: L.homology_generators()
+			[1, 0, 3]
+		"""
+		x4 = self.braidwordcomponentsvector()
 		hom_gen = []
 		for j in range(len(x4)-1):
 			a = abs(x4[j])
@@ -152,10 +252,28 @@ class Link:
 		return hom_gen
 
 	def Seifert_Matrix(self):
-		x5 = self.braidwordcompenetsvector()
+		r"""
+		Returns the Seifert Matrix
+
+		INPUT:
+			- Either a briadword, gauss_code, dt_code
+
+		OUTPUT:
+			- Returns the Seifert Matrix of the link.
+
+		EXAMPLES::
+
+			sage: from sage.knots import link
+			sage: B = BraidGroup(4)
+			sage: L = link.Link(B([-1, 3, 1, 3]))
+			sage: L.Seifert_Matrix()
+			[ 0  0]
+			[ 0 -1]
+		"""
+		x5 = self.braidwordcomponentsvector()
 		h = self.homology_generators()
 		hl = len(h)
-		A = matrix(QQ, hl, hl)
+		A = matrix(ZZ, hl, hl)
 		for i in range(hl):
 			if h[i] != 0:
 				for j in range(i,hl):
@@ -182,9 +300,9 @@ class Link:
 						elif (abs(x5[j])- abs(x5[i]) == 1):
 							A[i,j] = 1
 							A[j,i] = 0
-				else:
-					A[i,j] = 2
-					A[j,i] = 2
+						else:
+							A[i,j] = 2
+							A[j,i] = 2
 			else:
 				for k in range(hl):
 					A[k,i] = 0
@@ -198,21 +316,57 @@ class Link:
 				A = A.delete_columns([i])
 		return A
 
+
 	def link_number(self):
+		r"""
+		Returns the link number
+
+		INPUT:
+			- Either a briadword, gauss_code, dt_code
+
+		OUTPUT:
+			- Link number of the link
+
+		EXAMPLES::
+
+			sage: from sage.knots import link
+			sage: B = BraidGroup(4)
+			sage: L = link.Link(B([-1, 3, 1, 3]))
+			sage: L.link_number()
+			4
+		"""
 		count = 0
 		b = self.braid().permutation()
 		c = [0 for i in range(len(b))]
 		for i in range(len(b)):
 			if c[i] == 0:
 				c[i] = 1
-				k = b[i] 
+				k = b[i]
 				while((k-1) != i):
 					c[(k-1)] = 1
 					k = b[k-1]
 				count = count + 1
 		return count
 
+
 	def smallest_equivalent(self):
+		r"""
+		Returns the braidword
+
+		INPUT:
+			- Either a briadword, gauss_code, dt_code
+
+		OUTPUT:
+			- Smallest equivalent of the given braid word representation.
+
+		EXAMPLES::
+
+			sage: from sage.knots import link
+			sage: B = BraidGroup(4)
+			sage: L = link.Link(B([-1, 3, 1, 3]))
+			sage: L.smallest_equivalent()
+			[-1, 3, 1, 3]
+		"""
 		b = list(self.braid().Tietze())
 		b1 = min([abs(k) for k in b])
 		for i in range(len(b)):
