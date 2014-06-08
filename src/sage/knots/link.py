@@ -767,7 +767,7 @@ class Link:
             sage: L.is_alternating()
             True
         """
-        if x.is_knot() == True:
+        if self.is_knot() == True:
             x = self.gauss_code()
             s = [cmp(x[i],0) for i in range(len(x))]
             if s == [(-1)**i+1 for i in range(len(x))] or s == [(-1)**i for i in range(len(x))]:
