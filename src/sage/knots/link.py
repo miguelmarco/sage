@@ -1133,7 +1133,7 @@ class Link:
     def _vogel_move_(self):
         r"""
         Returns the Planar Diagram code if there is a vogel's move required, else returns
-        "no move required". Whether a move is required or not is decided by the following
+        "No Vogel Move". Whether a move is required or not is decided by the following
         criteria:
         A bad region is one that has two components with the same sign, but that belong
         to different Seifert circles.
