@@ -8,10 +8,9 @@ Link class
 #                  http://www.gnu.org/licenses/
 #*****************************************************************************
 
-from sage.groups.braid import Braid
+from sage.misc.lazy_import import lazy_import
 from sage.matrix.constructor import matrix
 from sage.rings.integer_ring import ZZ
-from sage.groups.braid import BraidGroup
 from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
 from sage.rings.finite_rings.integer_mod import Mod
 from sage.plot.arrow import arrow2d
@@ -25,6 +24,8 @@ from sage.rings.integer_ring import IntegerRing
 from sage.combinat.permutation import Permutations
 from sage.rings.finite_rings.integer_mod_ring import IntegerModRing
 from sage.symbolic.ring import SR, var
+
+lazy_import('sage.groups.braid', ['Braid', 'BraidGroup'])
 
 
 class Link:
@@ -44,7 +45,7 @@ class Link:
 
           sage: from sage.knots import link
           sage: B = BraidGroup(8)
-          sage: L = link.Link(B([1, 2,1, -2,-1]))
+          sage: L = link.Link(B([1, 2, 1, -2,-1]))
           sage: L
           Link with 2 components represented by 5 crossings
           sage: L = link.Link([[[-1, +2, -3, 4, +5, +1, -2, +6, +7, 3, -4, -7, -6,-5]],[-1, -1, -1, -1, 1, -1, 1]])
@@ -55,7 +56,7 @@ class Link:
           Link with 2 components represented by 5 crossings
     """
 
-    def __init__(self, x):
+    def __init__(self, input_):
         r"""
 
         The Python constructor.
@@ -83,12 +84,12 @@ class Link:
         crossings) and start moving along the link. Trace every component of
         the link, by starting at a particular point on one component of the link and
         taking note of each of the crossings until one returns to the starting
-        point. Note each component as an list whose elements are the crossing
-        numbers. Put all the components together in a list. We need the orientation
-        of every crossing. This is recorded as list with +1 and -1, +1 recorded
+        point. Note each component as a list whose elements are the crossing
+        numbers. Compile every component info into a list. We need the orientation
+        of every crossing. This is recorded as a list with +1 and -1, +1 is recorded
         if the direction from leaving over-cross to the leaving under-cross is
         anti-clockwise, -1 if the direction from the leaving over-cross to the
-        entering over-cross is clockwise.
+        leaving under-cross is clockwise.
 
             # for knots there is only a single component so the input is as follows
             sage: from sage.knots import link
@@ -107,7 +108,7 @@ class Link:
         Select some point on the link. Start numbering the strands in the
         components of the link. For a new component add one to the greatest
         number from the previous component and proceed till all the strands
-        are numbered. At every cross start moving contruct the data as follows
+        are numbered. At every cross contruct the data as follows :
         Start with the strand number of the entering under-cross and move in the
         clockwise direction around the cross and note down the strand numbers.
         Construct this data at every crossing and that would give the PD-Code.
@@ -125,30 +126,54 @@ class Link:
             sage: L
             Link with 2 components represented by 2 crossings
         """
-        self._x = x
-        if type(self._x) == list:
-            if len(self._x) != 2:
-                self._PD_code = self._x
-                self._oriented_gauss_code = None
-                self._braid = None
-
-            elif len(self._x) == 2:
-                if type(self._x[0][0]) == list:
-                    self._oriented_gauss_code = self._x
-                    self._PD_code = None
-                    self._braid = None
+        self.input_ = input_
+        if type(self.input_) == list:
+            if len(self.input_) != 2:
+                for i in self.input_:
+                    if len(i) != 4:
+                        raise Exception("Invalid Input")
                 else:
-                    self._PD_code = self._x
+                    self._PD_code = self.input_
                     self._oriented_gauss_code = None
                     self._braid = None
 
-        elif isinstance(self._x, Braid):
-            self._braid = self._x
-            self._oriented_gauss_code = None
-            self._PD_code = None
-
+            elif len(self.input_) == 2:
+                for i in self.input_[0]:
+                    if type(i) == list:
+                        ogc = True
+                        break
+                else:
+                    ogc = False
+                if ogc == False:
+                    for i in self.input_:
+                        if len(i) != 4:
+                            raise Exception("Invalid Input")
+                    else:
+                        self._PD_code = self.input_
+                        self._oriented_gauss_code = None
+                        self._braid = None
+                elif ogc == True:
+                    for i in self.input_[0]:
+                        if type(i) != list:
+                            raise Exception("Invalid Input")
+                    else:
+                        flat = [x for y in self.input_[0] for x in y]
+                        a, b = max(flat), min(flat)
+                        if 2 * len(self.input_[1]) == len(flat) and set(range(b, a + 1)) - set([0]) == set(flat):
+                            self._oriented_gauss_code = self.input_
+                            self._PD_code = None
+                            self._braid = None
+                        else:
+                            raise Exception("Invalid Input")
         else:
-            raise Exception("Invalid Input")
+            from sage.groups.braid import Braid
+            if isinstance(self.input_, Braid):
+                self._braid = self.input_
+                self._oriented_gauss_code = None
+                self._PD_code = None
+
+            else:
+                raise Exception("Invalid Input")
 
     def __repr__(self):
         r"""
@@ -384,7 +409,7 @@ class Link:
                     elif oriented_gauss_code[1][i] == 1:
                         crossing_dic.update(
                             {i + 1: [d_dic[-(i + 1)][0], d_dic[i + 1][0], d_dic[-(i + 1)][1], d_dic[i + 1][1]]})
-            pd = [crossing_dic[i] for i in crossing_dic.keys()]
+            pd = crossing_dic.values()
             self._PD_code = pd
             return self._PD_code
 
@@ -452,6 +477,18 @@ class Link:
             - Gauss code representation of the link.
 
         EXAMPLES::
+
+            sage: from sage.knots import link
+            sage: L = link.Link([[1,4,2,3],[4,1,3,2]])
+            sage: L.gauss_code()
+            [[-1, 2], [1, -2]]
+            sage: B = BraidGroup(8)
+            sage: L = link.Link(B([1, -2, 1, -2, -2]))
+            sage: L.gauss_code()
+            [[-1, 3, -4, 5], [1, -2, 4, -5, 2, -3]]
+            sage: L = link.Link([[[-1, 2], [-3, 4], [1, 3, -4, -2]], [-1, -1, 1, 1]])
+            sage: L.gauss_code()
+            [[-1, 2], [-3, 4], [1, 3, -4, -2]]
         """
         if self._braid != None:
             self.PD_code()
@@ -483,6 +520,18 @@ class Link:
               for knots.
 
         EXAMPLES::
+
+            sage: from sage.knots import link
+            sage: L = link.Link([[1,5,2,4],[5,3,6,2],[3,1,4,6]])
+            sage: L.dt_code()
+            [4, 6, 2]
+            sage: B = BraidGroup(4)
+            sage: L = link.Link(B([1, 2, 1, 2]))
+            sage: L.dt_code()
+            [4, -6, 8, -2]
+            sage: L = link.Link([[[1, -2, 3, -4, 5, -1, 2, -3, 4, -5]], [1, 1, 1, 1, 1]])
+            sage: L.dt_code()
+            [6, 8, 10, 2, 4]
         """
         def _dt_internal_(b):
             N = len(b)
@@ -539,6 +588,29 @@ class Link:
             return _dt_internal_(self._braidword_detection_())
 
     def _dowker_notation_(self):
+        r"""
+        Returns the dowker notation of the link. It is the pair of incoming
+        under cross and the incoming over cross. This information at every cross
+        gives the dowker notation.
+
+        OUTPUT:
+            - List containing the pair of incoming under cross and the incoming
+              over cross.
+
+        EXAMPLES::
+
+            sage: from sage.knots import link
+            sage: L = link.Link([[[-1, +2, -3, 4, +5, +1, -2, +6, +7, 3, -4, -7, -6,-5]],[-1, -1, -1, -1, 1, -1, 1]])
+            sage: L._dowker_notation_()
+            [(1, 6), (7, 2), (3, 10), (11, 4), (14, 5), (13, 8), (12, 9)]
+            sage: B = BraidGroup(4)
+            sage: L = link.Link(B([1, 2, 1, 2]))
+            sage: L._dowker_notation_()
+            [(2, 1), (3, 5), (6, 4), (7, 9)]
+            sage: L = link.Link([[1,4,2,3],[4,1,3,2]])
+            sage: L._dowker_notation_()
+            [(1, 3), (4, 2)]
+        """
         pd = self.PD_code()
         orient = self.orientation()
         dn = [(i[0], i[3]) if orient[j] == -1 else (i[0], i[1])
@@ -1610,14 +1682,8 @@ class Link:
                         q = q + 1
                         break
         del crossing[-1]
-        # before we read the braid words, we make '-' in orient to -1 and similarly
-        # '+' to +1
-        sign = [None for i in range(len(orient))]
-        for i, j in enumerate(orient):
-            if j == -1:
-                sign[i] = -1
-            elif j == 1:
-                sign[i] = 1
+        # record the signs
+        sign = orient
         # each crossing belongs to two seifert circles, we find the first and
         # break
         braid = []
