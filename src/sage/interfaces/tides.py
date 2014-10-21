@@ -342,7 +342,7 @@ def remove_repeated(l1, l2):
     for i in range(len(l1)-1):
         j=i+1
         while j<len(l1):
-            if l1[j] == l1[i]:
+            if str(l1[j]) == str(l1[i]):
                 l1.pop(j)
                 l2.pop(j)
             else:
