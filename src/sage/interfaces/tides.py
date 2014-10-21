@@ -50,7 +50,7 @@ from sage.symbolic.ring import SR
 
 
 
-def subexpressions_list(f, pars=None):
+def subexpressions_list(f, pars=None, domain=RealField()):
     """
     Construct the lists with the intermediate steps on the evaluation of the
     function.
@@ -96,8 +96,8 @@ def subexpressions_list(f, pars=None):
         sage: f(a)=[cos(a), arctan(a)]
         sage: from sage.interfaces.tides import subexpressions_list
         sage: subexpressions_list(f)
-        ([sin(a), cos(a), a^2, a^2 + 1, arctan(a)],
-        [('sin', a), ('cos', a), ('mul', a, a), ('add', 1, a^2), ('atan', a)])
+        ([sin(a), cos(a), a^2, a^2 + 1.00000000000000, arctan(a)],
+        [('sin', a), ('cos', a), ('mul', a, a), ('add', 1.00000000000000, a^2), ('atan', a)])
 
     ::
 
@@ -119,18 +119,18 @@ def subexpressions_list(f, pars=None):
         b*z,
         -b*z,
         x*y - b*z],
-        [('mul', -1, y),
+        [('mul', -1.00000000000000, y),
         ('add', -y, x),
         ('mul', x - y, s),
-        ('mul', -1, s*(x - y)),
-        ('mul', -1, z),
+        ('mul', -1.00000000000000, s*(x - y)),
+        ('mul', -1.00000000000000, z),
         ('add', -z, r),
         ('mul', x, r - z),
-        ('mul', -1, y),
+        ('mul', -1.00000000000000, y),
         ('add', -y, (r - z)*x),
         ('mul', y, x),
         ('mul', z, b),
-        ('mul', -1, b*z),
+        ('mul', -1.00000000000000, b*z),
         ('add', -b*z, x*y)])
 
     ::
@@ -157,7 +157,7 @@ def subexpressions_list(f, pars=None):
         parameters = pars
     varpar = list(parameters) + list(variables)
     F = symbolic_expression([i(*variables) for i in f]).function(*varpar)
-    lis = flatten([fast_callable(i,vars=varpar).op_list() for i in F], max_level=1)
+    lis = flatten([fast_callable(i, vars=varpar,domain=domain).op_list() for i in F], max_level=1)
     deflist = []
     stack = []
     const =[]
@@ -175,8 +175,8 @@ def subexpressions_list(f, pars=None):
                     stack.append(a*basis)
                     stackcomp.append(stack[-1])
             else:
-                detail.append(('pow',stack[-1],i[1]))
-                stack[-1]=stack[-1]**i[1]
+                detail.append(('pow',stack[-1],domain(i[1])))
+                stack[-1]=stack[-1]**domain(i[1])
                 stackcomp.append(stack[-1])
 
         elif i[0] == 'load_const':
@@ -210,19 +210,19 @@ def subexpressions_list(f, pars=None):
             stack.append(b**a)
             stackcomp.append(stack[-1])
 
-        elif i[0] == 'py_call' and str(i[1])=='log':
+        elif i == 'log':
             a=stack.pop(-1)
             detail.append(('log', a))
             stack.append(log(a))
             stackcomp.append(stack[-1])
 
-        elif i[0] == 'py_call' and str(i[1])=='exp':
+        elif i == 'exp':
             a=stack.pop(-1)
             detail.append(('exp', a))
             stack.append(exp(a))
             stackcomp.append(stack[-1])
 
-        elif i[0] == 'py_call' and str(i[1])=='sin':
+        elif i == 'sin':
             a=stack.pop(-1)
             detail.append(('sin', a))
             detail.append(('cos', a))
@@ -230,7 +230,7 @@ def subexpressions_list(f, pars=None):
             stackcomp.append(cos(a))
             stack.append(sin(a))
 
-        elif i[0] == 'py_call' and str(i[1])=='cos':
+        elif i == 'cos':
             a=stack.pop(-1)
             detail.append(('sin', a))
             detail.append(('cos', a))
@@ -238,7 +238,7 @@ def subexpressions_list(f, pars=None):
             stackcomp.append(cos(a))
             stack.append(cos(a))
 
-        elif i[0] == 'py_call' and str(i[1])=='tan':
+        elif i == 'tan':
             a=stack.pop(-1)
             b = sin(a)
             c = cos(a)
@@ -250,56 +250,56 @@ def subexpressions_list(f, pars=None):
             stackcomp.append(b/c)
             stack.append(b/c)
 
-        elif i[0] == 'py_call' and str(i[1])=='arctan':
+        elif i == 'atan':
             a=stack.pop(-1)
             detail.append(('mul', a, a))
-            detail.append(('add', 1, a*a))
+            detail.append(('add', domain(1), a*a))
             detail.append(('atan', a))
             stackcomp.append(a*a)
-            stackcomp.append(1+a*a)
+            stackcomp.append(domain(1)+a*a)
             stackcomp.append(arctan(a))
             stack.append(arctan(a))
 
-        elif i[0] == 'py_call' and str(i[1])=='arcsin':
+        elif i == 'asin':
             a=stack.pop(-1)
             detail.append(('mul', a, a))
-            detail.append(('mul', -1, a*a))
-            detail.append(('add', 1, -a*a))
-            detail.append(('pow', 1- a*a, 0.5))
+            detail.append(('mul', domain(-1), a*a))
+            detail.append(('add', domain(1), -a*a))
+            detail.append(('pow', domain(1)- a*a, domain(0.5)))
             detail.append(('asin', a))
             stackcomp.append(a*a)
             stackcomp.append(-a*a)
-            stackcomp.append(1-a*a)
-            stackcomp.append(sqrt(1-a*a))
+            stackcomp.append(domain(1)-a*a)
+            stackcomp.append(sqrt(domain(1)-a*a))
             stackcomp.append(arcsin(a))
             stack.append(arcsin(a))
 
-        elif i[0] == 'py_call' and str(i[1])=='arccos':
+        elif i == 'acos':
             a=stack.pop(-1)
             detail.append(('mul', a, a))
-            detail.append(('mul', -1, a*a))
-            detail.append(('add', 1, -a*a))
-            detail.append(('pow', 1- a*a, 0.5))
-            detail.append(('mul', -1, sqrt(1-a*a)))
+            detail.append(('mul', -domain(1), a*a))
+            detail.append(('add', domain(1), -a*a))
+            detail.append(('pow', domain(1)- a*a, domain(0.5)))
+            detail.append(('mul', domain(-1), sqrt(domain(1)-a*a)))
             detail.append(('acos', a))
             stackcomp.append(a*a)
             stackcomp.append(-a*a)
-            stackcomp.append(1-a*a)
-            stackcomp.append(sqrt(1-a*a))
-            stackcomp.append(-sqrt(1-a*a))
+            stackcomp.append(domain(1)-a*a)
+            stackcomp.append(sqrt(domain(1)-a*a))
+            stackcomp.append(-sqrt(domain(1)-a*a))
             stackcomp.append(arccos(a))
             stack.append(arccos(a))
 
         elif i[0] == 'py_call' and 'sqrt' in str(i[1]):
             a=stack.pop(-1)
-            detail.append(('pow', a, 0.5))
+            detail.append(('pow', a, domain(0.5)))
             stackcomp.append(sqrt(a))
             stack.append(sqrt(a))
 
 
         elif i == 'neg':
             a = stack.pop(-1)
-            detail.append(('mul', -1, a))
+            detail.append(('mul', domain(-1), a))
             stack.append(-a)
             stackcomp.append(-a)
 
@@ -319,22 +319,22 @@ def remove_repeated(l1, l2):
         sage: f(a)=[1 + a^2, arcsin(a)]
         sage: l1, l2 = subexpressions_list(f)
         sage: l1, l2
-        ([a^2, a^2 + 1, a^2, -a^2, -a^2 + 1, sqrt(-a^2 + 1), arcsin(a)],
+        ([a^2, a^2 + 1.00000000000000, a^2, -a^2, -a^2 + 1.00000000000000, sqrt(-a^2 + 1.00000000000000), arcsin(a)],
         [('mul', a, a),
-        ('add', 1, a^2),
+        ('add', 1.00000000000000, a^2),
         ('mul', a, a),
-        ('mul', -1, a^2),
-        ('add', 1, -a^2),
-        ('pow', -a^2 + 1, 0.5),
+        ('mul', -1.00000000000000, a^2),
+        ('add', 1.00000000000000, -a^2),
+        ('pow', -a^2 + 1.00000000000000, 0.500000000000000),
         ('asin', a)])
         sage: remove_repeated(l1, l2)
         sage: l1, l2
-        ([a^2, a^2 + 1, -a^2, -a^2 + 1, sqrt(-a^2 + 1), arcsin(a)],
+        ([a^2, a^2 + 1.00000000000000, -a^2, -a^2 + 1.00000000000000, sqrt(-a^2 + 1.00000000000000), arcsin(a)],
         [('mul', a, a),
-        ('add', 1, a^2),
-        ('mul', -1, a^2),
-        ('add', 1, -a^2),
-        ('pow', -a^2 + 1, 0.5),
+        ('add', 1.00000000000000, a^2),
+        ('mul', -1.00000000000000, a^2),
+        ('add', 1.00000000000000, -a^2),
+        ('pow', -a^2 + 1.00000000000000, 0.500000000000000),
         ('asin', a)])
 
 
@@ -359,11 +359,14 @@ def remove_constants(l1,l2):
         sage: f(a)=[1+cos(7)*a]
         sage: l1, l2 = subexpressions_list(f)
         sage: l1, l2
-        ([sin(7), cos(7), a*cos(7), a*cos(7) + 1],
-        [('sin', 7), ('cos', 7), ('mul', cos(7), a), ('add', 1, a*cos(7))])
-        sage: remove_constants(l1,l2)
-        sage: l1, l2
-        ([a*cos(7), a*cos(7) + 1], [('mul', cos(7), a), ('add', 1, a*cos(7))])
+        ([0.656986598718789,
+        0.753902254343305,
+        0.753902254343305*a,
+        0.753902254343305*a + 1.00000000000000],
+        [('sin', 7.00000000000000),
+        ('cos', 7.00000000000000),
+        ('mul', 0.753902254343305, a),
+        ('add', 1.00000000000000, 0.753902254343305*a)])
 
     """
     i=0
@@ -500,14 +503,14 @@ def genfiles_mintides(integrator, driver, f, ics, initial, final, delta,
                 aa = 'XX[{}]'.format(l1.index(a)+len(var))
             else:
                 consta=True
-                aa = RR(a).str(truncate=False)
+                aa = a.str(truncate=False)
             if b in var:
                 bb = 'XX[{}]'.format(var.index(b))
             elif b in l1:
                 bb = 'XX[{}]'.format(l1.index(b)+len(var))
             else:
                 constb = True
-                bb = RR(b).str(truncate=False)
+                bb = b.str(truncate=False)
             if consta:
                 oper += '_c'
                 if not oper=='div':
@@ -526,17 +529,17 @@ def genfiles_mintides(integrator, driver, f, ics, initial, final, delta,
         if el[0] == 'add':
             string += el[1] + "[i] + " + el[2] +"[i];"
         elif el[0] == 'add_c':
-            string += "(i==0)? {}+".format(RR(SR(el[2]))) + el[1] + "[0] : "+ el[1]+ "[i];"
+            string += "(i==0)? {}+"+el[2] + el[1] + "[0] : "+ el[1]+ "[i];"
         elif el[0] == 'mul':
             string += "mul_mc("+el[1]+","+el[2]+",i);"
         elif el[0] == 'mul_c':
-            string += RR(SR(el[2])).str(truncate=False) + "*"+ el[1] + "[i];"
+            string += el[2] + "*"+ el[1] + "[i];"
         elif el[0] == 'pow_c':
-            string += "pow_mc_c("+el[1]+","+RR(SR(el[2])).str(truncate=False)+",XX[{}], i);".format(i+n)
+            string += "pow_mc_c("+el[1]+","+el[2]+",XX[{}], i);".format(i+n)
         elif el[0] == 'div':
             string += "div_mc("+el[2]+","+el[1]+",XX[{}], i);".format(i+n)
         elif el[0] == 'div_c':
-            string += "inv_mc("+RR(SR(el[2])).str(truncate=False)+","+el[1]+",XX[{}], i);".format(i+n)
+            string += "inv_mc("+el[2]+","+el[1]+",XX[{}], i);".format(i+n)
         elif el[0] == 'log':
             string += "log_mc("+el[1]+",XX[{}], i);".format(i+n)
         elif el[0] == 'exp':
@@ -757,7 +760,7 @@ def genfiles_mpfr(integrator, driver, f, ics, initial, final, delta,
     if parameter_values == None:
         parameter_values = []
     RR = RealField(ceil(dig * 3.322))
-    l1, l2 = subexpressions_list(f, parameters)
+    l1, l2 = subexpressions_list(f, parameters, RR)
     remove_repeated(l1, l2)
     remove_constants(l1, l2)
     l3=[]
@@ -787,7 +790,7 @@ def genfiles_mpfr(integrator, driver, f, ics, initial, final, delta,
                 aa = 'par[{}]'.format(parameters.index(a))
             else:
                 consta=True
-                aa = RR(a).str(truncate=False)
+                aa = a.str(truncate=False)
             if b in var:
                 bb = 'var[{}]'.format(var.index(b))
             elif b in l1:
@@ -796,7 +799,7 @@ def genfiles_mpfr(integrator, driver, f, ics, initial, final, delta,
                 bb = 'par[{}]'.format(parameters.index(b))
             else:
                 constb=True
-                bb = RR(b).str(truncate=False)
+                bb = b.str(truncate=False)
             if consta:
                 oper += '_c'
                 if not oper=='div':
@@ -825,17 +828,17 @@ def genfiles_mpfr(integrator, driver, f, ics, initial, final, delta,
         if el[0] == 'add':
             string += 'add_t(itd, ' + el[1] + ', ' + el[2] + ', link[{}], i);'.format(i)
         elif el[0] == 'add_c':
-            string += 'add_t_c(itd, "' + RR(SR(el[2])).str(truncate=False) + '", ' + el[1] + ', link[{}], i);'.format(i)
+            string += 'add_t_c(itd, "' + el[2] + '", ' + el[1] + ', link[{}], i);'.format(i)
         elif el[0] == 'mul':
             string += 'mul_t(itd, ' + el[1] + ', ' + el[2] + ', link[{}], i);'.format(i)
         elif el[0] == 'mul_c':
-            string += 'mul_t_c(itd, "' + RR(SR(el[2])).str(truncate=False) + '", ' + el[1] + ', link[{}], i);'.format(i)
+            string += 'mul_t_c(itd, "' + el[2] + '", ' + el[1] + ', link[{}], i);'.format(i)
         elif el[0] == 'pow_c':
-            string += 'pow_t_c(itd, ' + el[1] + ', "' + RR(SR(el[2])).str(truncate=False) + '", link[{}], i);'.format(i)
+            string += 'pow_t_c(itd, ' + el[1] + ', "' + el[2] + '", link[{}], i);'.format(i)
         elif el[0] == 'div':
             string += 'div_t(itd, ' + el[2] + ', ' + el[1] + ', link[{}], i);'.format(i)
         elif el[0] == 'div_c':
-            string += 'div_t_cv(itd, "' + RR(SR(el[2])).str(truncate=False) + '", ' + el[1] + ', link[{}], i);'.format(i)
+            string += 'div_t_cv(itd, "' + el[2] + '", ' + el[1] + ', link[{}], i);'.format(i)
         elif el[0] == 'log':
             string += 'log_t(itd, ' + el[1]  + ', link[{}], i);'.format(i)
         elif el[0] == 'exp':
@@ -845,13 +848,13 @@ def genfiles_mpfr(integrator, driver, f, ics, initial, final, delta,
         elif el[0] == 'cos':
             string += 'cos_t(itd, ' + el[1]  + ', link[{}], link[{}], i);'.format(i-1, i)
         elif el[0] == 'atan':
-            indarg = l1.index(1+l2[i][1]**2)-n
+            indarg = l1.index(RR(1)+l2[i][1]**2)-n
             string += 'atan_t(itd, ' + el[1] + ', link[{}], link[{}], i);'.format(indarg, i)
         elif el[0] == 'asin':
-            indarg = l1.index(sqrt(1-l2[i][1]**2))-n
+            indarg = l1.index(sqrt(RR(1)-l2[i][1]**2))-n
             string += 'asin_t(itd, ' + el[1] + ', link[{}], link[{}], i);'.format(indarg, i)
         elif el[0] == 'acos':
-            indarg = l1.index(-sqrt(1-l2[i][1]**2))-n
+            indarg = l1.index(-sqrt(RR(1)-l2[i][1]**2))-n
             string += 'acos_t(itd, ' + el[1] + ', link[{}], link[{}], i);'.format(indarg, i)
         code.append(string)
 
